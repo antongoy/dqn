@@ -2,9 +2,7 @@ import gym
 import torch
 import argparse
 import numpy as np
-import torch.nn as nn
 
-from torch.optim import Adam
 from torch.autograd import Variable
 from torchvision.transforms import Compose
 
