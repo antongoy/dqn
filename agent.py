@@ -1,7 +1,10 @@
-import torch
+import torch.nn as nn
 import numpy as np
 
 from torch.autograd import Variable
+from torch.optim import Adam
+
+from utils import FloatTensor, LongTensor
 
 
 class Agent(object):
@@ -17,12 +20,13 @@ class Agent(object):
 
 
 class GreedyStrategy(object):
-    def __init__(self, Q):
-        self.Q = Q
+    def __init__(self, Q, cuda=True):
+        self.Q = Q.cuda() if cuda else Q
+        self.cuda = cuda
 
     def select_action(self, state):
         state = state[None, ...]
-        state = torch.cuda.FloatTensor(state)
+        state = FloatTensor(state, self.cuda)
         state = Variable(state, requires_grad=False)
 
         values = self.Q(state)
@@ -60,28 +64,30 @@ class NoLearnStrategy(object):
         pass
 
 
-class SimpleLearnStrategy(object):
-    def __init__(self, Q, criterion, optimizer, replay, gamma, batch_size):
-        self.Q = Q
+class QLearningStrategy(object):
+    def __init__(self, Q, lr, replay, gamma, batch_size, cuda=True):
+        self.Q = Q.cuda() if cuda else Q
+        self.lr = lr
+        self.cuda = cuda
         self.gamma = gamma
         self.batch_size = batch_size
-        self.criterion = criterion
-        self.optimizer = optimizer
+        self.criterion = nn.MSELoss()
+        self.optimizer = Adam(Q.parameters(), lr=lr)
         self.replay = replay
 
     def learn(self):
         prev_states, actions, rewards, states = self.replay.sample_minibatch(self.batch_size)
 
-        rewards = torch.cuda.FloatTensor(rewards[:, None])
+        rewards = FloatTensor(rewards[:, None], self.cuda)
         rewards = Variable(rewards, requires_grad=False)
 
-        actions = torch.cuda.LongTensor(actions[:, None])
+        actions = LongTensor(actions[:, None], self.cuda)
         actions = Variable(actions, requires_grad=False)
 
-        prev_states = torch.cuda.FloatTensor(prev_states)
+        prev_states = FloatTensor(prev_states, self.cuda)
         prev_states = Variable(prev_states, requires_grad=False)
 
-        states = torch.cuda.FloatTensor(states)
+        states = FloatTensor(states, self.cuda)
         states = Variable(states, requires_grad=False)
 
         current_values = self.Q(prev_states)

@@ -11,7 +11,7 @@ from torchvision.transforms import Compose
 from models import DQN
 from decay import ExpDecay
 from replay import ExperienceReplay
-from agent import Agent, EpsilonGreedyStrategy, SimpleLearnStrategy, RandomStrategy, NoLearnStrategy
+from agent import Agent, EpsilonGreedyStrategy, QLearningStrategy, RandomStrategy, NoLearnStrategy
 from preprocess import ToGrayScale, Resize
 
 
@@ -47,12 +47,10 @@ preprocess = Compose([
     Resize((args.frame_size, args.frame_size))
 ])
 
-criterion = nn.MSELoss().cuda()
 Q = DQN(args.num_frames, env.action_space.n).cuda()
 decay = ExpDecay(args.start_decay, args.decay_factor, args.min_decay)
 test_replay = ExperienceReplay(1000, args.num_frames, (args.frame_size, args.frame_size))
 replay = ExperienceReplay(args.replay_size, args.num_frames, (args.frame_size, args.frame_size))
-optimizer = Adam(Q.parameters(), lr=args.lr, weight_decay=0.01)
 
 random_agent = Agent(
     RandomStrategy(env.action_space.n),
@@ -61,7 +59,7 @@ random_agent = Agent(
 
 agent = Agent(
     EpsilonGreedyStrategy(Q, env.action_space.n, decay),
-    SimpleLearnStrategy(Q, criterion, optimizer, replay, args.gamma, args.batch_size)
+    QLearningStrategy(Q, args.lr, replay, args.gamma, args.batch_size)
 )
 
 for episode in range(10):
