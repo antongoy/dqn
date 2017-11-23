@@ -1,14 +1,16 @@
+import torch
 import numpy as np
 
 
 class History(object):
-    def __init__(self, capacity, state_size, observation_shape):
+    def __init__(self, capacity, state_size, observation_shape, batch_size=32):
         self.capacity = capacity
         self.state_size = state_size
+        self.batch_size = batch_size
         self.observation_shape = observation_shape
 
         self.observations = np.zeros((capacity,) + observation_shape, dtype=np.float32)
-        self.actions = np.zeros(capacity, dtype=np.int32)
+        self.actions = np.zeros(capacity, dtype=np.int64)
         self.rewards = np.zeros(capacity, dtype=np.float32)
 
         self.counter = -1
@@ -18,10 +20,7 @@ class History(object):
 
     def _state(self, state_idx):
         observations_idx = [self._index(state_idx - idx) for idx in range(self.state_size)]
-        return self.observations[observations_idx]
-
-    def _produce_state(self):
-        return self._state(self.counter)
+        return self.observations[np.newaxis, observations_idx]
 
     def _register_observation(self, observation):
         self.counter += 1
@@ -34,7 +33,7 @@ class History(object):
     def register_init_observation(self, observation):
         self._register_zero_observations(self.state_size - 1)
         self._register_observation(observation)
-        return self._produce_state()
+        return self._state(self.counter)
 
     def register_transition(self, new_observation, action, reward):
         self.counter += 1
@@ -45,15 +44,15 @@ class History(object):
         self.actions[prev_index] = action
         self.rewards[prev_index] = reward
 
-        return self._produce_state()
+        return self._state(self.counter)
 
     def reset(self):
         self.counter = 0
 
-    def batch(self, batch_size):
-        indexes = np.random.choice(min(self.capacity, self.counter), size=min(batch_size, self.counter), replace=False)
+    def batch(self):
+        indexes = np.random.choice(min(self.capacity, self.counter), size=min(self.batch_size, self.counter), replace=False)
 
-        states = np.stack([self._state(idx + 1) for idx in indexes], axis=0)
-        prev_states = np.stack([self._state(idx) for idx in indexes], axis=0)
+        states = np.vstack([self._state(idx + 1) for idx in indexes])
+        prev_states = np.vstack([self._state(idx) for idx in indexes])
 
-        return prev_states, self.actions[indexes], self.rewards[indexes], states
+        return prev_states, self.actions[indexes, np.newaxis], self.rewards[indexes, np.newaxis], states

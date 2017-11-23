@@ -1,116 +1,65 @@
 import gym
 import torch
 import argparse
-import numpy as np
 
-from torch.autograd import Variable
+from .models import DQN
+from .policy import EpsilonGreedyPolicy
+from .environment import TransformObservationWrapper, ScaleRewardWrapper, BookkeepingWrapper
+from .transforms import ToGrayScale, Resize
+from .learning import QLearning
+from .history import History
+from .epsilon import Epsilon
+
 from torchvision.transforms import Compose
 
-from models import DQN
-from decay import ExpDecay
-from replay import ExperienceReplay
-from agent import Agent, EpsilonGreedyStrategy, QLearningStrategy, RandomStrategy, NoLearnStrategy
-from preprocess import ToGrayScale, Resize
 
-
-def evaluate_model(Q, states):
-    states = torch.cuda.FloatTensor(states)
-    states = Variable(states, requires_grad=False)
-
-    values, _ = Q(states).max(dim=1)
-
-    return values.mean().data.cpu().numpy()
-
-
-parser = argparse.ArgumentParser(description="Learn playing in Space Invaders using DQN")
-parser.add_argument('--num-frames', type=int, default=4, help='Number of observed frames for a state')
-parser.add_argument('--num-episodes', type=int, default=100, help='Number of episodes to play')
-parser.add_argument('--start-decay', type=float, default=0.9, help='Value to start decaying')
-parser.add_argument('--decay-factor', type=float, default=0.999, help='Decay factor')
-parser.add_argument('--min-decay', type=float, default=0.1, help='Minimum achievable decay value')
-parser.add_argument('--replay-size', type=int, default=10000, help='Experience replay size')
-parser.add_argument('--batch-size', type=int, default=32, help='Batch size')
-parser.add_argument('--gamma', type=float, default=0.8, help='Discount factor')
-parser.add_argument('--lr', type=float, default=0.00001, help='Learning rate')
-parser.add_argument('--skip-frames', type=int, default=3, help='Skip number of frames')
-parser.add_argument('--frame-size', type=int, default=84, help='Frame size')
-parser.add_argument('--save-every', type=int, default=20, help='Save every N episodes')
-
-args = parser.parse_args()
-
-env = gym.make('SpaceInvaders-v0')
-
-preprocess = Compose([
-    ToGrayScale(),
-    Resize((args.frame_size, args.frame_size))
-])
-
-Q = DQN(args.num_frames, env.action_space.n).cuda()
-decay = ExpDecay(args.start_decay, args.decay_factor, args.min_decay)
-test_replay = ExperienceReplay(1000, args.num_frames, (args.frame_size, args.frame_size))
-replay = ExperienceReplay(args.replay_size, args.num_frames, (args.frame_size, args.frame_size))
-
-random_agent = Agent(
-    RandomStrategy(env.action_space.n),
-    NoLearnStrategy()
-)
-
-agent = Agent(
-    EpsilonGreedyStrategy(Q, env.action_space.n, decay),
-    QLearningStrategy(Q, args.lr, replay, args.gamma, args.batch_size)
-)
-
-for episode in range(10):
+def run_episode(env, policy, learning_strategy, history):
+    done = False
 
     observation = env.reset()
-    observation = preprocess(observation)
-
-    state = test_replay.register_initial_observation(observation)
-
-    done = False
+    state = history.register_init_observation(observation)
     while not done:
-        action = random_agent.select_action(state)
+        action = policy.decision(state)
         observation, reward, done, _ = env.step(action)
-        reward = np.clip(reward, -1., 1.)
-        observation = preprocess(observation)
-        state = test_replay.register_transition(observation, action, reward)
+        state = history.register_transition(observation, action, reward)
+        batch = history.batch()
+        learning_strategy.learn(*batch)
 
-test_states, _, _, _ = test_replay.sample_minibatch(4 * args.batch_size)
 
-for episode in range(args.num_episodes):
-    observation = env.reset()
-    observation = preprocess(observation)
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--episodes', default=1000, type=int, help='Total number of episodes to learn')
+    parser.add_argument('--learn-every', default=5, type=int, help='Frequency in frames of learning')
+    parser.add_argument('--lr', default=0.0001, type=float, help='Learning rate')
+    parser.add_argument('--annealing', default=300000, type=int, help='Number iterations to anneal epsilon')
+    parser.add_argument('--history-size', default=100000, type=int, help='Max number of frames to store in history')
+    parser.add_argument('--saved-model-path', default='', help='Path to a model file')
 
-    state = replay.register_initial_observation(observation)
+    args = parser.parse_args()
 
-    done = False
-    total_reward = 0
-    frame = 0
+    transform = Compose([
+        ToGrayScale(),
+        Resize((84, 84))
+    ])
 
-    while not done:
-        frame += 1
-        # env.render()
+    env = gym.make('SpaceInvaders-v0')
 
-        action = agent.select_action(state)
+    if args.saved_model_path:
+        dqn = torch.load(args.saved_model_path)
+    else:
+        dqn = DQN(4, env.action_space.n)
 
-        observation, reward, done, _ = env.step(action)
-        observation = preprocess(observation)
-        reward = np.clip(reward, -1., 1.)
-        state = replay.register_transition(observation, action, reward)
+    env = TransformObservationWrapper(ScaleRewardWrapper(env), transform)
+    env = BookkeepingWrapper(env, dqn, print_every=1)
 
-        total_reward += reward
+    learning_strategy = QLearning(env, dqn, learn_every=args.learn_every, lr=args.lr)
+    policy = EpsilonGreedyPolicy(env, dqn, Epsilon(annealing=args.annealing))
 
-        if frame % args.skip_frames == 0:
-            continue
+    history = History(args.history_size, 4, (84, 84))
 
-        agent.learn()
+    for episode in range(args.episodes):
+        run_episode(env, policy, learning_strategy, history)
 
-    model_score = evaluate_model(Q, test_states)
 
-    print('Episode = {}, Total reward = {}, Decay = {}, Replay = {} Score = {:.3f}'.\
-          format(episode, total_reward, decay, replay.counter, model_score[0]))
-
-    if episode and episode % args.save_every == 0:
-        torch.save(Q, '../model_after_{}.pth'.format(episode))
-
-torch.save(Q, '../model_final.pth')
+if __name__ == '__main__':
+    main()
