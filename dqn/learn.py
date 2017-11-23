@@ -36,6 +36,7 @@ def main():
     parser.add_argument('--saved-model-path', default='', help='Path to a model file')
     parser.add_argument('--use-cuda', action='store_true', help='Use CUDA')
     parser.add_argument('--batch-size', default=32, type=int, help='Batch size')
+    parser.add_argument('--checkpoint-dir-path', default='./checkpoints/', help='Checkpoint dir')
 
     args = parser.parse_args()
 
@@ -54,7 +55,7 @@ def main():
     dqn = WrapperDQN(dqn, cuda=args.use_cuda)
 
     env = TransformObservationWrapper(ScaleRewardWrapper(env), transform)
-    env = BookkeepingWrapper(env, dqn, print_every=1)
+    env = BookkeepingWrapper(env, dqn, print_every=1, checkpoint_dir_path=args.checkpoint_dir_path)
 
     learning_strategy = QLearning(env, dqn, learn_every=args.learn_every, lr=args.lr)
     policy = EpsilonGreedyPolicy(env, dqn, Epsilon(annealing=args.annealing))
