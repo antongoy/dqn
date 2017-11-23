@@ -35,6 +35,7 @@ def main():
     parser.add_argument('--history-size', default=100000, type=int, help='Max number of frames to store in history')
     parser.add_argument('--saved-model-path', default='', help='Path to a model file')
     parser.add_argument('--use-cuda', action='store_true', help='Use CUDA')
+    parser.add_argument('--batch-size', default=32, type=int, help='Batch size')
 
     args = parser.parse_args()
 
@@ -58,7 +59,7 @@ def main():
     learning_strategy = QLearning(env, dqn, learn_every=args.learn_every, lr=args.lr)
     policy = EpsilonGreedyPolicy(env, dqn, Epsilon(annealing=args.annealing))
 
-    history = History(args.history_size, 4, (84, 84))
+    history = History(args.history_size, 4, (84, 84), batch_size=args.batch_size)
 
     for episode in range(args.episodes):
         run_episode(env, policy, learning_strategy, history)

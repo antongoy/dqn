@@ -1,5 +1,6 @@
 import gym
 import torch
+import argparse
 
 from .policy import GreedyPolicy
 from .environment import TransformObservationWrapper, ScaleRewardWrapper, BookkeepingWrapper
@@ -23,12 +24,17 @@ def run_episode(env, policy, history):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('model-path', help='Total number of episodes to learn')
+
+    args = parser.parse_args()
+
     transform = Compose([
         ToGrayScale(),
         Resize((84, 84))
     ])
 
-    dqn = torch.load('./checkpoints/after_episode_90.checkpoint')
+    dqn = torch.load(args.model_path)
 
     env = gym.make('SpaceInvaders-v0')
     env = TransformObservationWrapper(ScaleRewardWrapper(env), transform)

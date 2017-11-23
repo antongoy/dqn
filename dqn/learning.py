@@ -11,11 +11,10 @@ class NoLearning(object):
 
 
 class QLearning(object):
-    def __init__(self, env, dqn, update_every=10000, learn_every=5, lr=0.0001, gamma=0.99, batch_size=32):
+    def __init__(self, env, dqn, update_every=10000, learn_every=5, lr=0.0001, gamma=0.99):
         self.env = env
         self.lr = lr
         self.gamma = gamma
-        self.batch_size = batch_size
         self.learn_every = learn_every
         self.update_every = update_every
 

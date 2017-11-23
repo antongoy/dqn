@@ -21,11 +21,13 @@ class ScaleRewardWrapper(RewardWrapper):
 
 
 class BookkeepingWrapper(Wrapper):
-    def __init__(self, env, model,  checkpoint_every=10, print_every=5):
+    def __init__(self, env, model,  checkpoint_every=10, checkpoint_dir_path='./checkpoints/', print_every=5):
         super(BookkeepingWrapper, self).__init__(env)
         self.model = model
         self.print_every = print_every
         self.checkpoint_every = checkpoint_every
+        self.checkpoint_dir_path = checkpoint_dir_path
+
         self.episode = 0
         self.episode_frame = 0
         self.frame = 0
@@ -38,14 +40,15 @@ class BookkeepingWrapper(Wrapper):
                   .format(self.episode, self.episode_reward, self.episode_frame, self.frame))
 
         if self.episode and not self.episode % self.checkpoint_every:
-            if not os.path.exists('./checkpoints/'):
-                os.mkdir('./checkpoints/')
-            torch.save(self.model, './checkpoints/after_episode_%d.checkpoint' % self.episode)
+            if not os.path.exists(self.checkpoint_dir_path):
+                os.mkdir(self.checkpoint_dir_path)
+            torch.save(self.model, os.path.join(self.checkpoint_dir_path, 'after_episode_%d.checkpoint' % self.episode))
 
         self.episode_frame = 1
         self.episode += 1
         self.frame += 1
         self.episode_reward = 0
+
         return self.env.reset(**kwargs)
 
     def _step(self, action):
