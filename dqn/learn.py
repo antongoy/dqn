@@ -30,6 +30,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--episodes', default=1000, type=int, help='Total number of episodes to learn')
     parser.add_argument('--learn-every', default=5, type=int, help='Frequency in frames of learning')
+    parser.add_argument('--update-every', default=10000, type=int, help='Frequency in frames of updating target network')
     parser.add_argument('--lr', default=0.0001, type=float, help='Learning rate')
     parser.add_argument('--annealing', default=300000, type=int, help='Number iterations to anneal epsilon')
     parser.add_argument('--history-size', default=100000, type=int, help='Max number of frames to store in history')
@@ -57,7 +58,7 @@ def main():
     env = TransformObservationWrapper(ScaleRewardWrapper(env), transform)
     env = BookkeepingWrapper(env, dqn, print_every=1, checkpoint_dir_path=args.checkpoint_dir_path)
 
-    learning_strategy = QLearning(env, dqn, learn_every=args.learn_every, lr=args.lr)
+    learning_strategy = QLearning(env, dqn, learn_every=args.learn_every, update_every=args.update_every, lr=args.lr)
     policy = EpsilonGreedyPolicy(env, dqn, Epsilon(annealing=args.annealing))
 
     history = History(args.history_size, 4, (84, 84), batch_size=args.batch_size)
