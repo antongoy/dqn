@@ -4,8 +4,8 @@ import torch
 from .policy import GreedyPolicy
 from .environment import TransformObservationWrapper, ScaleRewardWrapper, BookkeepingWrapper
 from .transforms import ToGrayScale, Resize
-from .learning import QLearning
 from .history import History
+
 
 from torchvision.transforms import Compose
 

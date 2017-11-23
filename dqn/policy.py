@@ -1,7 +1,5 @@
 import numpy as np
 
-from .value_function import Q
-
 from random import random
 
 
@@ -17,10 +15,10 @@ class GreedyPolicy(Policy):
     def __init__(self, env, dqn):
         super(GreedyPolicy, self).__init__(env)
 
-        self.Q = Q(dqn)
+        self.dqn = dqn
 
     def decision(self, state):
-        return self.Q.argmax(state)
+        return self.dqn.argmax(state)
 
 
 class RandomPolicy(Policy):

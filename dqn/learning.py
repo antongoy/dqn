@@ -4,8 +4,6 @@ import torch.optim as optim
 
 from copy import deepcopy
 
-from .value_function import Q
-
 
 class NoLearning(object):
     def learn(self, states, actions, rewards, next_states):
@@ -20,20 +18,18 @@ class QLearning(object):
         self.batch_size = batch_size
         self.learn_every = learn_every
         self.update_every = update_every
-        self.target_dqn = dqn
-        self.learning_dqn = deepcopy(dqn)
 
-        self.Q = Q(self.learning_dqn)
-        self.Q_ = Q(dqn)
+        self.dqn = dqn
+        self.dqn_ = deepcopy(dqn)
         self.criterion = nn.MSELoss()
-        self.optimizer = optim.Adam(self.learning_dqn.parameters(), lr=lr)
+        self.optimizer = optim.Adam(self.dqn.parameters(), lr=lr)
 
     def learn(self, states, actions, rewards, next_states):
         if self.env.frame and self.env.frame % self.learn_every:
             return
 
-        values = self.Q.value(states, actions)
-        target_values = self.Q_.target_value(next_states, rewards, gamma=self.gamma)
+        values = self.dqn.value(states, actions)
+        target_values = self.dqn_.target_value(next_states, rewards, gamma=self.gamma)
 
         loss = self.criterion(values, target_values.detach())
         loss = torch.clamp(loss, -1, 1)
@@ -43,4 +39,4 @@ class QLearning(object):
         self.optimizer.step()
 
         if self.env.frame and not self.env.frame % self.update_every:
-            self.target_dqn.load_state_dict(self.learning_dqn.state_dict())
+            self.dqn_.model.load_state_dict(self.dqn.model.state_dict())

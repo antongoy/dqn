@@ -2,7 +2,7 @@ import gym
 import torch
 import argparse
 
-from .models import DQN
+from .models import DQN, WrapperDQN
 from .policy import EpsilonGreedyPolicy
 from .environment import TransformObservationWrapper, ScaleRewardWrapper, BookkeepingWrapper
 from .transforms import ToGrayScale, Resize
@@ -34,6 +34,7 @@ def main():
     parser.add_argument('--annealing', default=300000, type=int, help='Number iterations to anneal epsilon')
     parser.add_argument('--history-size', default=100000, type=int, help='Max number of frames to store in history')
     parser.add_argument('--saved-model-path', default='', help='Path to a model file')
+    parser.add_argument('--use-cuda', action='store_true', help='Use CUDA')
 
     args = parser.parse_args()
 
@@ -48,6 +49,8 @@ def main():
         dqn = torch.load(args.saved_model_path)
     else:
         dqn = DQN(4, env.action_space.n)
+
+    dqn = WrapperDQN(dqn, cuda=args.use_cuda)
 
     env = TransformObservationWrapper(ScaleRewardWrapper(env), transform)
     env = BookkeepingWrapper(env, dqn, print_every=1)
