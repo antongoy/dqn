@@ -22,7 +22,7 @@ class QLearning(object):
         self.dqn = dqn
         self.dqn_ = deepcopy(dqn)
         self.criterion = nn.MSELoss()
-        self.optimizer = optim.Adam(self.dqn.parameters(), lr=lr)
+        self.optimizer = optim.Adam(self.dqn.model.parameters(), lr=lr)
 
     def learn(self, states, actions, rewards, next_states):
         if self.env.frame and self.env.frame % self.learn_every:
