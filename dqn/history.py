@@ -9,9 +9,9 @@ class History(object):
         self.batch_size = batch_size
         self.observation_shape = observation_shape
 
-        self.observations = np.zeros((capacity,) + observation_shape, dtype=np.float32)
-        self.actions = np.zeros(capacity, dtype=np.int64)
-        self.rewards = np.zeros(capacity, dtype=np.float32)
+        self.observations = np.zeros((capacity,) + observation_shape, dtype=np.int8)
+        self.actions = np.zeros(capacity, dtype=np.int8)
+        self.rewards = np.zeros(capacity, dtype=np.int8)
 
         self.counter = -1
 
@@ -52,7 +52,9 @@ class History(object):
     def batch(self):
         indexes = np.random.choice(min(self.capacity, self.counter), size=min(self.batch_size, self.counter), replace=False)
 
-        states = np.vstack([self._state(idx + 1) for idx in indexes])
-        prev_states = np.vstack([self._state(idx) for idx in indexes])
+        states = np.vstack([self._state(idx + 1) for idx in indexes]).astype(np.float32)
+        actions = self.actions[indexes, np.newaxis].astype(np.int32)
+        rewards = self.rewards[indexes, np.newaxis].astype(np.float32)
+        prev_states = np.vstack([self._state(idx) for idx in indexes]).astype(np.float32)
 
-        return prev_states, self.actions[indexes, np.newaxis], self.rewards[indexes, np.newaxis], states
+        return prev_states, actions, rewards, states
