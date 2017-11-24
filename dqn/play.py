@@ -6,6 +6,7 @@ from .policy import GreedyPolicy
 from .environment import TransformObservationWrapper, ScaleRewardWrapper, BookkeepingWrapper
 from .transforms import ToGrayScale, Resize
 from .history import History
+from .models import WrapperDQN
 
 
 from torchvision.transforms import Compose
@@ -25,7 +26,8 @@ def run_episode(env, policy, history):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('model-path', help='Total number of episodes to learn')
+    parser.add_argument('model_path', help='Total number of episodes to learn')
+    parser.add_argument('--use-cuda', action='store_true', help='Use CUDA')
 
     args = parser.parse_args()
 
@@ -34,7 +36,8 @@ def main():
         Resize((84, 84))
     ])
 
-    dqn = torch.load(args.model_path)
+    dqn = torch.load(args.model_path, map_location={'cuda:0': 'cpu'})
+    dqn.cuda = False
 
     env = gym.make('SpaceInvaders-v0')
     env = TransformObservationWrapper(ScaleRewardWrapper(env), transform)

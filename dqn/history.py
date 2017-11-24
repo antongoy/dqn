@@ -9,7 +9,7 @@ class History(object):
         self.batch_size = batch_size
         self.observation_shape = observation_shape
 
-        self.observations = np.zeros((capacity,) + observation_shape, dtype=np.int8)
+        self.observations = np.zeros((capacity,) + observation_shape, dtype=np.uint8)
         self.actions = np.zeros(capacity, dtype=np.int8)
         self.rewards = np.zeros(capacity, dtype=np.int8)
 
@@ -20,7 +20,7 @@ class History(object):
 
     def _state(self, state_idx):
         observations_idx = [self._index(state_idx - idx) for idx in range(self.state_size)]
-        return self.observations[np.newaxis, observations_idx]
+        return self.observations[np.newaxis, observations_idx].astype(np.float32)
 
     def _register_observation(self, observation):
         self.counter += 1
@@ -52,9 +52,9 @@ class History(object):
     def batch(self):
         indexes = np.random.choice(min(self.capacity, self.counter), size=min(self.batch_size, self.counter), replace=False)
 
-        states = np.vstack([self._state(idx + 1) for idx in indexes]).astype(np.float32)
-        actions = self.actions[indexes, np.newaxis].astype(np.int32)
+        states = np.vstack([self._state(idx + 1) for idx in indexes])
+        actions = self.actions[indexes, np.newaxis].astype(np.int64)
         rewards = self.rewards[indexes, np.newaxis].astype(np.float32)
-        prev_states = np.vstack([self._state(idx) for idx in indexes]).astype(np.float32)
+        prev_states = np.vstack([self._state(idx) for idx in indexes])
 
         return prev_states, actions, rewards, states
