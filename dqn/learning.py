@@ -31,7 +31,7 @@ class QLearning(object):
         target_values = self.dqn_.target_value(next_states, rewards, gamma=self.gamma)
 
         loss = self.criterion(values, target_values.detach())
-        # loss = torch.clamp(loss, -1, 1)
+        loss = torch.clamp(loss, -1, 1)
 
         self.optimizer.zero_grad()
         loss.backward()

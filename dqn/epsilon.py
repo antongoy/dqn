@@ -9,7 +9,7 @@ class Epsilon(object):
     def __call__(self, counter):
         value = self.initial_value * (self.factor ** counter)
 
-        if value >= self.final_value:
+        if value < self.final_value:
             return self.final_value
 
         return value

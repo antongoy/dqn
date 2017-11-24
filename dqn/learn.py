@@ -2,7 +2,7 @@ import gym
 import torch
 import argparse
 
-from .models import DQN, WrapperDQN
+from .models import LightDQN, DQN, WrapperDQN
 from .policy import EpsilonGreedyPolicy
 from .environment import TransformObservationWrapper, ScaleRewardWrapper, BookkeepingWrapper
 from .transforms import ToGrayScale, Resize
@@ -22,20 +22,20 @@ def run_episode(env, policy, learning_strategy, history):
         action = policy.decision(state)
         observation, reward, done, _ = env.step(action)
         state = history.register_transition(observation, action, reward)
-        batch = history.batch()
-        learning_strategy.learn(*batch)
+        learning_strategy.learn(*history.batch())
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--episodes', default=1000, type=int, help='Total number of episodes to learn')
-    parser.add_argument('--learn-every', default=5, type=int, help='Frequency in frames of learning')
+    parser.add_argument('--learn-every', default=3, type=int, help='Frequency in frames of learning')
     parser.add_argument('--update-every', default=10000, type=int, help='Frequency in frames of updating target network')
     parser.add_argument('--lr', default=0.0001, type=float, help='Learning rate')
     parser.add_argument('--annealing', default=300000, type=int, help='Number iterations to anneal epsilon')
-    parser.add_argument('--history-size', default=100000, type=int, help='Max number of frames to store in history')
+    parser.add_argument('--history-size', default=300000, type=int, help='Max number of frames to store in history')
     parser.add_argument('--saved-model-path', default='', help='Path to a model file')
     parser.add_argument('--use-cuda', action='store_true', help='Use CUDA')
+    parser.add_argument('--use-light', action='store_true', help='Use light version of DQN')
     parser.add_argument('--batch-size', default=32, type=int, help='Batch size')
     parser.add_argument('--checkpoint-dir-path', default='./checkpoints/', help='Checkpoint dir')
 
@@ -51,7 +51,10 @@ def main():
     if args.saved_model_path:
         dqn = torch.load(args.saved_model_path)
     else:
-        dqn = DQN(4, env.action_space.n)
+        if args.use_light:
+            dqn = LightDQN(4, env.action_space.n)
+        else:
+            dqn = DQN(4, env.action_space.n)
 
     dqn = WrapperDQN(dqn, cuda=args.use_cuda)
 
