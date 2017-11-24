@@ -10,6 +10,8 @@ class WrapperDQN(object):
 
         if self.cuda:
             self.model = dqn.cuda()
+        else:
+            self.model = dqn
 
     def argmax(self, state):
         values = self.values(state)
