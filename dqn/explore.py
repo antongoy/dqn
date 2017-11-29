@@ -21,7 +21,7 @@ from torchvision.transforms import Compose
 def main():
     transform = Compose([
         ToGrayScale(),
-        Resize((32, 32))
+        Resize((84, 84))
     ])
 
     batch_size = 32
