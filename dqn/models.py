@@ -15,6 +15,7 @@ class WrapperDQN(object):
 
     def argmax(self, state):
         values = self.values(state)
+        # print(values)
         _, action = values.max(dim=1, keepdim=True)
         return action.data.cpu().numpy()
 
@@ -87,9 +88,9 @@ class LightDQN(nn.Module):
         self.fc2 = nn.Linear(128, num_actions)
 
     def forward(self, x):
-        x = self.bn1(self.relu(self.conv1(x)))
-        x = self.bn2(self.relu(self.conv2(x)))
-        x = self.bn3(self.relu(self.conv3(x)))
+        x = self.relu(self.bn1(self.conv1(x)))
+        x = self.relu(self.bn2(self.conv2(x)))
+        x = self.relu(self.bn3(self.conv3(x)))
         x = self.avg_pool(x)
         x = x.view(x.size(0), x.size(1))
         x = self.relu(self.fc1(x))

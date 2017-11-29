@@ -37,7 +37,7 @@ def main():
     ])
 
     dqn = torch.load(args.model_path, map_location={'cuda:0': 'cpu'})
-    dqn.cuda = False
+    dqn = WrapperDQN(dqn, cuda=args.use_cuda)
 
     env = gym.make('SpaceInvaders-v0')
     env = TransformObservationWrapper(ScaleRewardWrapper(env), transform)

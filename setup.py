@@ -7,7 +7,8 @@ setup(
     entry_points={
         'console_scripts': [
             'dqn_learn = dqn.learn:main',
-            'dqn_play = dqn.play:main'
+            'dqn_play = dqn.play:main',
+            'dqn_explore = dqn.explore:main'
         ]
     },
     packages=['dqn']

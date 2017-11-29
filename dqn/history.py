@@ -2,59 +2,80 @@ import torch
 import numpy as np
 
 
-class History(object):
-    def __init__(self, capacity, state_size, observation_shape, batch_size=32):
-        self.capacity = capacity
-        self.state_size = state_size
-        self.batch_size = batch_size
-        self.observation_shape = observation_shape
+class RingBuffer(object):
+    def __init__(self, entity_shape, max_capacity, dtype):
+        self.entity_shape = entity_shape
+        self.max_capacity = max_capacity
+        self.dtype = dtype
+        self.counter = 0
+        self.buffer = np.zeros((max_capacity,) + entity_shape, dtype=dtype)
 
-        self.observations = np.zeros((capacity,) + observation_shape, dtype=np.uint8)
-        self.actions = np.zeros(capacity, dtype=np.int8)
-        self.rewards = np.zeros(capacity, dtype=np.int8)
+    def append(self, entity=None):
+        if entity is not None:
+            self.buffer[self.counter % self.max_capacity] = entity
 
-        self.counter = -1
-
-    def _index(self, counter):
-        return counter % self.capacity
-
-    def _state(self, state_idx):
-        observations_idx = [self._index(state_idx - idx) for idx in range(self.state_size)]
-        return self.observations[np.newaxis, observations_idx].astype(np.float32)
-
-    def _register_observation(self, observation):
         self.counter += 1
-        self.observations[self._index(self.counter)] = observation
 
-    def _register_zero_observations(self, n):
-        for _ in range(n):
-            self._register_observation(np.zeros(self.observation_shape, dtype=np.float32))
+    def __getitem__(self, item):
+        return self.buffer[item % self.max_capacity]
 
-    def register_init_observation(self, observation):
-        self._register_zero_observations(self.state_size - 1)
-        self._register_observation(observation)
-        return self._state(self.counter)
-
-    def register_transition(self, new_observation, action, reward):
-        self.counter += 1
-        index = self._index(self.counter)
-        prev_index = self._index(self.counter - 1)
-
-        self.observations[index] = new_observation
-        self.actions[prev_index] = action
-        self.rewards[prev_index] = reward
-
-        return self._state(self.counter)
+    def last(self, n):
+        return self.buffer[None, [(self.counter - idx) % self.max_capacity for idx in range(1, n + 1)]]
 
     def reset(self):
         self.counter = 0
+        self.buffer[:] = 0
 
-    def batch(self):
-        indexes = np.random.choice(min(self.capacity, self.counter), size=min(self.batch_size, self.counter), replace=False)
 
-        states = np.vstack([self._state(idx + 1) for idx in indexes])
-        actions = self.actions[indexes, np.newaxis].astype(np.int64)
-        rewards = self.rewards[indexes, np.newaxis].astype(np.float32)
-        prev_states = np.vstack([self._state(idx) for idx in indexes])
+class StateGenerator(object):
+    def __init__(self, observation_shape, state_size):
+        self.observation_shape = observation_shape
+        self.state_size = state_size
+        self.observations = RingBuffer(observation_shape, state_size, dtype=np.uint8)
 
-        return prev_states, actions, rewards, states
+    def produce_state(self, observation):
+        self.observations.append(observation)
+        return self.observations.last(self.state_size)
+
+    def reset(self):
+        self.observations.reset()
+
+
+class History(object):
+    def __init__(self, observation_shape, state_size, max_capacity):
+        self.max_capacity = max_capacity
+        self.state_size = state_size
+        self.observation_shape = observation_shape
+
+        self.states = RingBuffer((state_size,) + observation_shape, max_capacity, dtype=np.uint8)
+        self.actions = RingBuffer((), max_capacity, dtype=np.int32)
+        self.rewards = RingBuffer((), max_capacity, dtype=np.int32)
+        self.isinit = RingBuffer((), max_capacity, dtype=np.int32)
+
+        self.counter = 0
+
+    def register_transition(self, action, reward, state, isterminal=False):
+        self.actions.append(action)
+        self.rewards.append(reward)
+        self.states.append(state)
+        self.isinit.append(isterminal)
+        self.counter += 1
+
+    def register_init_state(self, state):
+        self.actions.append()
+        self.rewards.append()
+        self.states.append(state)
+        self.isinit.append(True)
+        self.counter += 1
+
+    def batch(self, batch_size):
+        indexes = np.random.choice(min(self.max_capacity, self.counter), size=batch_size, replace=False)
+        indexes = [idx for idx in indexes if not self.isinit[idx]]
+
+        prev_states = np.stack([self.states[idx - 1] for idx in indexes])
+        actions = np.vstack([self.actions[idx] for idx in indexes])
+        rewards = np.vstack([self.rewards[idx] for idx in indexes])
+        states = np.stack([self.states[idx] for idx in indexes])
+        isterminals = np.vstack([self.isinit[idx + 1] for idx in indexes])
+
+        return prev_states, actions, rewards, states, isterminals

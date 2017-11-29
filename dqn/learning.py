@@ -38,4 +38,4 @@ class QLearning(object):
         self.optimizer.step()
 
         if self.env.frame and not self.env.frame % self.update_every:
-            self.dqn_.model.load_state_dict(self.dqn.model.state_dict())
+            self.dqn_.model.load_state_dict(deepcopy(self.dqn.model.state_dict()))

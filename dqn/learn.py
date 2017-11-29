@@ -3,7 +3,7 @@ import torch
 import argparse
 
 from .models import LightDQN, DQN, WrapperDQN
-from .policy import EpsilonGreedyPolicy
+from .policy import EpsilonGreedyPolicy, GreedyPolicy
 from .environment import TransformObservationWrapper, ScaleRewardWrapper, BookkeepingWrapper
 from .transforms import ToGrayScale, Resize
 from .learning import QLearning
