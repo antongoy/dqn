@@ -28,8 +28,8 @@ def main():
     env = gym.make('SpaceInvaders-v0')
     dqn = DQN(4, env.action_space.n)
     dqn_ = deepcopy(dqn)
-    history = History((32, 32), 4, 100000)
-    state_gen = StateGenerator((32, 32), 4)
+    history = History((84, 84), 4, 100000)
+    state_gen = StateGenerator((84, 84), 4)
 
     epsilon = Epsilon()
     criterion = nn.MSELoss()
