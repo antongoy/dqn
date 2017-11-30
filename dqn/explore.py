@@ -53,22 +53,26 @@ def main():
         history.register_init_state(state)
 
         while not done:
-            eps_value = epsilon(frame)
+            if episode_frame and not episode_frame % 4:
 
-            if random() < eps_value:
-                action = np.random.choice(env.action_space.n, size=1)
+                eps_value = epsilon(frame)
+
+                if random() < eps_value:
+                    action = np.random.choice(env.action_space.n, size=1)
+                else:
+                    state = Variable(torch.from_numpy(state).float(), requires_grad=False)
+                    values = dqn(state)
+                    _, action = values.max(dim=1, keepdim=True)
+                    action = action.data.cpu().numpy()
+
+                observation, reward, done, _ = env.step(action)
+                observation = transform(observation)
+                state = state_gen.produce_state(observation)
+                history.register_transition(action, reward, state)
             else:
-                state = Variable(torch.from_numpy(state).float(), requires_grad=False)
-                values = dqn(state)
-                _, action = values.max(dim=1, keepdim=True)
-                action = action.data.cpu().numpy()
+                observation, reward, done, _ = env.step(action)
 
-            observation, reward, done, _ = env.step(action)
-            observation = transform(observation)
-            state = state_gen.produce_state(observation)
-            history.register_transition(action, reward, state)
-
-            if frame and frame % 3:
+            if frame and frame % 4:
                 if frame > batch_size:
                     prev_states, actions, rewards, states, isterminals = history.batch(batch_size)
 
